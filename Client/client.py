@@ -4,8 +4,8 @@ import select
 import sys
 
 SERVER_IP = "127.0.0.1"
-TCP_PORT = 5001
-UDP_PORT = 5005
+TCP_PORT = 5000
+UDP_PORT = 6000
 
 BOARD_SIZE = 10
 CELL_SIZE = 40
@@ -17,7 +17,7 @@ def draw_boards(screen, own_board, enemy_board, font):
     for x in range(BOARD_SIZE):
         for y in range(BOARD_SIZE):
             rect = pygame.Rect(MARGIN + x * CELL_SIZE, MARGIN + y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-            # Verde = 1 (barco), rojo = 2 (hit), blanco = 3 (miss), azul = 0 (agua)
+            # Verde = barco (1), rojo = hit (2), blanco = miss (3), azul = agua (0)
             if own_board[x][y] == 1:
                 color = (0, 255, 0)
             elif own_board[x][y] == 2:
@@ -36,7 +36,7 @@ def draw_boards(screen, own_board, enemy_board, font):
     for x in range(BOARD_SIZE):
         for y in range(BOARD_SIZE):
             rect = pygame.Rect(offset_x + x * CELL_SIZE, MARGIN + y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-            # 2 = hit, 3 = miss, 0/1 => se muestra como agua (desconocido)
+            # En enemy_board, 2 = hit (rojo) y 3 = miss (blanco); el resto se muestra como agua
             if enemy_board[x][y] == 2:
                 color = (255, 0, 0)
             elif enemy_board[x][y] == 3:
@@ -55,11 +55,13 @@ def main():
     font = pygame.font.Font(None, 30)
     clock = pygame.time.Clock()
     
-    # Tableros en el cliente
+    # Inicializamos los tableros
     own_board = [[0]*BOARD_SIZE for _ in range(BOARD_SIZE)]
     enemy_board = [[0]*BOARD_SIZE for _ in range(BOARD_SIZE)]
     
-    # Conectar TCP
+    tcp_buffer = ""
+    
+    # Conectar por TCP
     try:
         tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         tcp_sock.connect((SERVER_IP, TCP_PORT))
@@ -72,7 +74,7 @@ def main():
     udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_sock.setblocking(False)
     
-    # Registrar para notificaciones UDP (0 o 1)
+    # Registrar para notificaciones UDP: ingresa tu índice (0 o 1)
     try:
         idx = int(input("Enter your player index (0 or 1): "))
     except:
@@ -80,18 +82,15 @@ def main():
     reg_msg = f"REGISTER {idx}"
     udp_sock.sendto(reg_msg.encode(), (SERVER_IP, UDP_PORT))
     
-    # Buffer para datos TCP que pueden llegar mezclados
-    tcp_buffer = ""
     messages = []
     running = True
-    
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mx, my = event.pos
-                # Ver si el clic es en el tablero de ataque (derecha)
+                # Si el clic es en el tablero de ataque (derecha)
                 if mx >= 500 and mx < 500 + BOARD_SIZE * CELL_SIZE and my >= MARGIN and my < MARGIN + BOARD_SIZE * CELL_SIZE:
                     gx = (mx - 500) // CELL_SIZE
                     gy = (my - MARGIN) // CELL_SIZE
@@ -101,56 +100,62 @@ def main():
                     except Exception as e:
                         print("Error sending FIRE command:", e)
         
-        # Revisar datos en TCP y UDP con select
         ready, _, _ = select.select([tcp_sock, udp_sock], [], [], 0)
         
-        # Manejo de TCP
+        # Procesar TCP
         if tcp_sock in ready:
             try:
                 data = tcp_sock.recv(BUFFER_SIZE)
                 if data:
                     tcp_buffer += data.decode()
-                    
-                    # Separar por líneas
                     lines = tcp_buffer.split('\n')
-                    
-                    # Procesar todas menos la última línea incompleta
-                    for i in range(len(lines) - 1):
+                    for i in range(len(lines)-1):
                         line = lines[i].strip()
                         print("[TCP]", line)
                         messages.append("[TCP] " + line)
-                        
-                        # Si empieza con "BOARD", parsear las posiciones de barcos
                         if line.startswith("BOARD"):
                             parts = line.split()
-                            # parts[0] = "BOARD", luego pares (x,y)
-                            # Recorremos de 1 en 1
-                            for p in range(1, len(parts), 2):
-                                x = int(parts[p])
-                                y = int(parts[p+1])
-                                own_board[x][y] = 1
-                    
-                    # Guardar la parte final (que puede estar incompleta) en tcp_buffer
+                            for j in range(1, len(parts), 2):
+                                try:
+                                    x = int(parts[j])
+                                    y = int(parts[j+1])
+                                    own_board[x][y] = 1
+                                except:
+                                    pass
+                        # Si la línea empieza con "HIT" o "MISS" (posible "HIT and sunk. You win!")
+                        elif line.startswith("HIT") or line.startswith("MISS"):
+                            parts = line.split()
+                            if len(parts) >= 3:
+                                try:
+                                    x = int(parts[1])
+                                    y = int(parts[2])
+                                    if line.startswith("HIT"):
+                                        enemy_board[x][y] = 2  # HIT = rojo
+                                    else:
+                                        enemy_board[x][y] = 3  # MISS = blanco
+                                except:
+                                    pass
                     tcp_buffer = lines[-1]
                 else:
                     print("TCP connection closed by server.")
                     running = False
-            except:
+            except Exception as e:
                 pass
         
-        # Manejo de UDP
+        # Procesar UDP
         if udp_sock in ready:
             try:
                 data, addr = udp_sock.recvfrom(BUFFER_SIZE)
                 if data:
-                    msg = data.decode().strip()
-                    print("[UDP]", msg)
-                    messages.append("[UDP] " + msg)
-                    # Se podría parsear "Opponent fired at (x,y): HIT" para actualizar own_board si deseas
+                    line = data.decode().strip()
+                    print("[UDP]", line)
+                    messages.append("[UDP] " + line)
+                    # Opcional: se puede parsear para actualizar el propio tablero si se reciben notificaciones.
+                else:
+                    pass
             except:
                 pass
         
-        # Dibujar la interfaz
         screen.fill((0, 0, 0))
         draw_boards(screen, own_board, enemy_board, font)
         y_offset = MARGIN + BOARD_SIZE * CELL_SIZE + 20
