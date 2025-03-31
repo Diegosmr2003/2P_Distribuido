@@ -5,6 +5,11 @@
  * - Se colocan NUM_SHIPS barcos (cada uno de longitud SHIP_LENGTH) en cada tablero.
  * - Al conectarse, el servidor envía "BOARD x y ..." con las coordenadas donde están los barcos.
  * - Al disparar se responde con "HIT x y" o "MISS x y" (o "HIT and sunk. You win! x y").
+ * Battleship por turnos con fork() y memoria compartida.
+ * - Cada jugador tiene un tablero con barcos colocados aleatoriamente.
+ * - Se colocan NUM_SHIPS barcos (cada uno de longitud SHIP_LENGTH) en cada tablero.
+ * - Al conectarse, el servidor envía "BOARD x y ..." con las coordenadas donde están los barcos.
+ * - Al disparar se responde con "HIT x y" o "MISS x y" (o "HIT and sunk. You win! x y").
  *************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
