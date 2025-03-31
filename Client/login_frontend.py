@@ -8,7 +8,7 @@ from credentials import users  # Import the credentials dictionary
 pygame.init()
 
 # Constants
-WIDTH, HEIGHT = 400, 400
+WIDTH, HEIGHT = 1000, 600
 WHITE = (255, 255, 255)
 LIGHT_GRAY = (220, 220, 220)
 DARK_GRAY = (150, 150, 150)
@@ -70,15 +70,32 @@ def launch_game():
     subprocess.run(["python3", "client.py"])
     sys.exit()
 
+import pygame
+
 def show_about_page():
+  # Dimensiones de la pantalla
     running = True
+    
+    # Definir colores de guerra
+    BACKGROUND_COLOR = (50, 50, 50)  # Gris oscuro
+    TEXT_COLOR = (200, 200, 200)  # Gris claro
+    TITLE_COLOR = (255, 215, 0)  # Amarillo dorado
+    BUTTON_COLOR = (50, 100, 50)  # Verde militar
+    BUTTON_HOVER_COLOR = (100, 150, 100)  # Verde más claro
+    BORDER_COLOR = (255, 0, 0)  # Rojo
+    
     while running:
-        screen.fill(WHITE)
-        screen.blit(title_font.render("About This Game", True, BLACK), (500, 250))
+        screen.fill(BACKGROUND_COLOR)
+        
+        # Dibujar título
+        title_text = title_font.render("About This Game", True, TITLE_COLOR)
+        screen.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, 50))
+        
+        # Texto de información
         about_text = [
             "Battleship in Python",
             "Members:",
-            "Jesus Abel Castillo",
+            "Jesus Abel Gutierrez Calvillo",
             "Diego Montoya Rodriguez",
             "Jose Bernardo Sandoval Martinez",
             "Teacher:",
@@ -95,11 +112,25 @@ def show_about_page():
         ]
 
         for i, line in enumerate(about_text):
-            screen.blit(font.render(line, True, BLACK), (50, 120 + i * 30))
+            text_surface = font.render(line, True, TEXT_COLOR)
+            screen.blit(text_surface, (50, 120 + i * 30))
         
-        back_rect = pygame.Rect(150, 300, 100, 40)
+        # Posicionar el botón en la esquina inferior derecha
+        back_width, back_height = 150, 50
+        back_x = WIDTH - back_width - 40  # Margen de 40 píxeles desde el borde derecho
+        back_y = HEIGHT - back_height - 40  # Margen de 40 píxeles desde el borde inferior
+        back_rect = pygame.Rect(back_x, back_y, back_width, back_height)
+        
         mouse_pos = pygame.mouse.get_pos()
-        draw_button(back_rect, "Back", back_rect.collidepoint(mouse_pos))
+        is_hovered = back_rect.collidepoint(mouse_pos)
+        
+        # Dibujar botón con bordes
+        pygame.draw.rect(screen, BORDER_COLOR, back_rect.inflate(4, 4), border_radius=8)
+        pygame.draw.rect(screen, BUTTON_HOVER_COLOR if is_hovered else BUTTON_COLOR, back_rect, border_radius=8)
+        
+        # Dibujar texto del botón
+        button_text = font.render("Back", True, TEXT_COLOR)
+        screen.blit(button_text, (back_x + (back_width - button_text.get_width()) // 2, back_y + (back_height - button_text.get_height()) // 2))
         
         pygame.display.flip()
         
@@ -108,6 +139,7 @@ def show_about_page():
                 running = False
             elif event.type == pygame.MOUSEBUTTONDOWN and back_rect.collidepoint(event.pos):
                 return
+
 
 def main():
     global username, password, active_field, password_hidden, login_message
