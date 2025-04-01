@@ -2,12 +2,10 @@ import pygame
 import sys
 import subprocess
 import json
-from credentials import users  # Import the credentials dictionary
+from credentials import users  # Importar las credenciales 
 
-# Initialize pygame
 pygame.init()
 
-# Constants
 WIDTH, HEIGHT = 1000, 600
 WHITE = (255, 255, 255)
 LIGHT_GRAY = (220, 220, 220)
@@ -16,22 +14,20 @@ BLACK = (0, 0, 0)
 BLUE = (70, 130, 180)
 LIGHT_BLUE = (100, 149, 237)
 
-# Screen setup
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Login Page")
 
-# Fonts
 font = pygame.font.Font(None, 32)
 title_font = pygame.font.Font(None, 40)
 
-# Input fields
+# Parametros
 username = ""
 password = ""
 active_field = None
 password_hidden = True
 login_message = ""
 
-# Buttons
+# Botones
 login_rect = pygame.Rect(150, 200, 100, 40)
 register_rect = pygame.Rect(150, 250, 100, 40)
 about_rect = pygame.Rect(150, 300, 100, 40)
@@ -151,7 +147,7 @@ def main():
         
         mouse_pos = pygame.mouse.get_pos()
         
-        # Event handling
+        # Manejo de eventos
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -186,20 +182,20 @@ def main():
                     else:
                         password += event.unicode
         
-        # Draw input fields
+        # Dibujar campos de entrada
         draw_input_box(username_rect, username)
         draw_input_box(password_rect, password, is_password=True)
         
-        # Draw labels
+        # Dibujar etiquetas
         screen.blit(font.render("Username:", True, BLACK), (100, 80))
         screen.blit(font.render("Password:", True, BLACK), (100, 130))
         
-        # Draw buttons
+        # Dibujar botones
         draw_button(login_rect, "Login", login_rect.collidepoint(mouse_pos))
         draw_button(register_rect, "Register", register_rect.collidepoint(mouse_pos))
         draw_button(about_rect, "About", about_rect.collidepoint(mouse_pos))
         
-        # Display login message
+        # Mostrar mensaje de inicio de sesión
         message_surface = font.render(login_message, True, BLACK)
         screen.blit(message_surface, (100, 350))
         

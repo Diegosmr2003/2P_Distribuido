@@ -1,15 +1,10 @@
 /*************************************************************
- * server_shm.c
- * Battleship por turnos con fork() y memoria compartida.
- * - Cada jugador tiene un tablero con barcos colocados aleatoriamente.
- * - Se colocan NUM_SHIPS barcos (cada uno de longitud SHIP_LENGTH) en cada tablero.
- * - Al conectarse, el servidor envía "BOARD x y ..." con las coordenadas donde están los barcos.
- * - Al disparar se responde con "HIT x y" o "MISS x y" (o "HIT and sunk. You win! x y").
- * Battleship por turnos con fork() y memoria compartida.
- * - Cada jugador tiene un tablero con barcos colocados aleatoriamente.
- * - Se colocan NUM_SHIPS barcos (cada uno de longitud SHIP_LENGTH) en cada tablero.
- * - Al conectarse, el servidor envía "BOARD x y ..." con las coordenadas donde están los barcos.
- * - Al disparar se responde con "HIT x y" o "MISS x y" (o "HIT and sunk. You win! x y").
+ * - Servidor para el juego Battleship por turnos usando fork() y memoria compartida.
+ * - Cada jugador tiene su propio tablero con barcos colocados aleatoriamente.
+ * - Se colocan NUM_SHIPS barcos (de longitud SHIP_LENGTH).
+ * - Al conectarse, el servidor envía al jugador su tablero mediante un mensaje "BOARD x y ..." con coordenadas.
+ * - Los disparos se realizan mediante el comando "FIRE x y".
+ * - La respuesta puede ser "HIT x y", "MISS x y" o "HIT and sunk. You win! x y" si se gana el juego.
  *************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,13 +23,19 @@
 #define BOARD_SIZE 10
 #define BUFFER_SIZE 1024
 #define MAX_PLAYERS 2
-#define NUM_SHIPS 3   // Número de barcos por tablero
-#define SHIP_LENGTH 3 // Longitud de cada barco
+#define NUM_SHIPS 3   
+#define SHIP_LENGTH 3
 
-// Prototipos de funciones
-void send_tcp_message(int sockfd, const char* msg);
+// Envio de mensajes:
+
+// Utilizado para comandos, respuestas y mensajes de estado
+void send_tcp_message(int sockfd, const char* msg); 
+
+// Usado para notificaciones no bloqueantes (por ejemplo, disparos del oponente)
 void send_udp_message(int udp_sockfd, struct sockaddr_in addr, const char* msg);
-void send_board_distribution(int sockfd, int board[BOARD_SIZE][BOARD_SIZE]);
+
+//Construye y envía el mensaje "BOARD" con las coordenadas de los barcos
+void send_board_distribution(int sockfd, int board[BOARD_SIZE][BOARD_SIZE]); 
 
 // Estructura para cada jugador en memoria compartida (datos UDP)
 typedef struct {
@@ -59,17 +60,17 @@ typedef struct {
 
 PlayerLocal playersLocal[MAX_PLAYERS];
 
-// Función: enviar mensaje por TCP
+// Mensaje por TCP
 void send_tcp_message(int sockfd, const char* msg) {
     write(sockfd, msg, strlen(msg));
 }
 
-// Función: enviar mensaje por UDP
+// Mensaje por UDP
 void send_udp_message(int udp_sockfd, struct sockaddr_in addr, const char* msg) {
     sendto(udp_sockfd, msg, strlen(msg), 0, (struct sockaddr *)&addr, sizeof(addr));
 }
 
-// Función: enviar la distribución del tablero al cliente (mensaje "BOARD x y x2 y2 ...")
+// Enviar la distribución del tablero al cliente (mensaje "BOARD x y x2 y2 ...")
 void send_board_distribution(int sockfd, int board[BOARD_SIZE][BOARD_SIZE]) {
     char msg[BUFFER_SIZE];
     memset(msg, 0, sizeof(msg));
@@ -87,24 +88,28 @@ void send_board_distribution(int sockfd, int board[BOARD_SIZE][BOARD_SIZE]) {
     send_tcp_message(sockfd, msg);
 }
 
-// Función: intenta colocar un barco de longitud SHIP_LENGTH aleatoriamente en el tablero
-// Devuelve 1 si se coloca, 0 si falla.
+// Colocar un barco de longitud SHIP_LENGTH aleatoriamente en el tablero
+// Devuelve 1 si se coloca, 0 si falla
 int place_ship(int board[BOARD_SIZE][BOARD_SIZE]) {
     int orientation = rand() % 2; // 0: horizontal, 1: vertical
     int startX = rand() % BOARD_SIZE;
     int startY = rand() % BOARD_SIZE;
     int i;
     if(orientation == 0) {
+        // Verifica que el barco no se salga por la derecha
         if(startY + SHIP_LENGTH - 1 >= BOARD_SIZE)
             return 0;
+        // Verifica que el espacio esté libre
         for(i = 0; i < SHIP_LENGTH; i++){
             if(board[startX][startY + i] != 0)
                 return 0;
         }
+        // Coloca el barco
         for(i = 0; i < SHIP_LENGTH; i++){
             board[startX][startY + i] = 1;
         }
     } else {
+        // Verifica que no se salga por abajo
         if(startX + SHIP_LENGTH - 1 >= BOARD_SIZE)
             return 0;
         for(i = 0; i < SHIP_LENGTH; i++){
@@ -118,7 +123,7 @@ int place_ship(int board[BOARD_SIZE][BOARD_SIZE]) {
     return 1;
 }
 
-// Función: coloca NUM_SHIPS barcos en el tablero sin solaparse
+// Coloca NUM_SHIPS barcos en el tablero sin solaparse
 void randomize_board_with_ships(int board[BOARD_SIZE][BOARD_SIZE]) {
     int shipsPlaced = 0;
     // Inicializar el tablero en 0
@@ -131,7 +136,7 @@ void randomize_board_with_ships(int board[BOARD_SIZE][BOARD_SIZE]) {
     }
 }
 
-// Función: verifica si quedan barcos (valor 1) en el tablero
+// Verifica si quedan barcos (valor 1) en el tablero
 int hasShips(int board[BOARD_SIZE][BOARD_SIZE]) {
     for (int i = 0; i < BOARD_SIZE; i++){
         for (int j = 0; j < BOARD_SIZE; j++){
@@ -142,12 +147,13 @@ int hasShips(int board[BOARD_SIZE][BOARD_SIZE]) {
     return 0;
 }
 
-// Función: procesa el disparo desde el jugador shooter en (x,y)
+// Procesa el disparo desde el jugador shooter en (x,y)
 // Retorna "HIT", "MISS", "Already fired", o "HIT and sunk. You win!"
 const char* process_fire(GameState *gs, int shooter, int x, int y) {
     if(gs->gameOver)
         return "Game is already over.";
     int target = (shooter == 0) ? 1 : 0;
+    // Se selecciona el tablero del oponente como objetivo del disparo
     int (*board)[BOARD_SIZE] = (target == 0) ? gs->board1 : gs->board2;
     if(x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE)
         return "MISS (out of range)";
@@ -166,8 +172,9 @@ const char* process_fire(GameState *gs, int shooter, int x, int y) {
     }
 }
 
-// Función: maneja la conexión TCP de un jugador
+// Maneja la conexión TCP de un jugador
 void handle_tcp_client(int newsockfd, int playerIndex, int udp_sockfd, int shmid) {
+    // Se conecta a la memoria compartida para acceder al estado global del juego
     GameState *gs = (GameState *) shmat(shmid, NULL, 0);
     if(gs == (void*)-1) {
         perror("shmat in handle_tcp_client");
@@ -232,7 +239,7 @@ void handle_tcp_client(int newsockfd, int playerIndex, int udp_sockfd, int shmid
     }
 }
 
-// Función: proceso hijo para manejar registros UDP
+// Proceso hijo para manejar registros UDP
 void udp_handler(int udp_sockfd, int shmid) {
     GameState *gs = (GameState *) shmat(shmid, NULL, 0);
     if(gs == (void*)-1) {
@@ -260,6 +267,7 @@ void udp_handler(int udp_sockfd, int shmid) {
 }
 
 int main() {
+    // Inicializa la semilla de números aleatorios para colocar los barcos aleatoriamente
     srand(time(NULL));
     
     // Crear memoria compartida para el estado del juego
@@ -347,7 +355,6 @@ int main() {
         }
     }
     
-    // Limpieza (no se llega normalmente)
     shmdt(gs);
     shmctl(shmid, IPC_RMID, NULL);
     return 0;

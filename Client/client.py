@@ -36,7 +36,7 @@ def draw_boards(screen, own_board, enemy_board, font):
     for x in range(BOARD_SIZE):
         for y in range(BOARD_SIZE):
             rect = pygame.Rect(offset_x + x * CELL_SIZE, MARGIN + y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-            # En enemy_board, 2 = hit (rojo) y 3 = miss (blanco); el resto se muestra como agua
+            # En enemy_board, 2 = hit (rojo) y 3 = miss (blanco); el resto se muestra azul
             if enemy_board[x][y] == 2:
                 color = (255, 0, 0)
             elif enemy_board[x][y] == 3:
@@ -150,7 +150,6 @@ def main():
                     line = data.decode().strip()
                     print("[UDP]", line)
                     messages.append("[UDP] " + line)
-                    # Opcional: se puede parsear para actualizar el propio tablero si se reciben notificaciones.
                 else:
                     pass
             except:

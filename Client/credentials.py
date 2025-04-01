@@ -7,5 +7,7 @@ users = {
     "Diego": "DIego",
     "Diego1": "Hola",
     "PAPU": "PAPU",
-    "Junio": "Junio"
+    "Junio": "Junio",
+    "jesus": "1234",
+    "jony": "abcd"
 }
