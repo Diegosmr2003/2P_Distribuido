@@ -17,3 +17,4 @@ Este proyecto consiste en la implementación del clásico juego "Battle-Ship" en
 ###Características principales:
 - **Servidor en C**: Es el encargado de gestionar la lógica del juego y la comunicación entre los clientes.
 - **Clientes en Python**: Contiene el manejo de la recepción de las peticiones realizadas al servidor y el manejo del apartado gráfico para los jugadores.
+- **Login en Python**: Contiene la logica para poder verificarse para poder jugar.
